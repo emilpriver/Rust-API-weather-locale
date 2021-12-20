@@ -1,4 +1,9 @@
-# Getting Started
+# Rust Api which users runners info to fetch weather
+
+running at: https://weather-locale-api.emilpriver.workers.dev/
+
+
+# Cloudflare Workers
 
 A template for kick starting a Cloudflare worker project using [`workers-rs`](https://github.com/cloudflare/workers-rs).
 
