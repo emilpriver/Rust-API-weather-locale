@@ -6,7 +6,6 @@ edition = "2018"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-reqwest = { version = "0.11.7", features = ["json"] }
 
 [features]
 default = ["console_error_panic_hook"]
@@ -15,6 +14,9 @@ default = ["console_error_panic_hook"]
 cfg-if = "0.1.2"
 worker = "0.0.7"
 serde_json = "1.0.67"
+serde = "1.0.132"
+reqwest = { version = "0.11.7", features = ["json"] }
+
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

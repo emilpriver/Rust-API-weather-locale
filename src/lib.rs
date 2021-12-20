@@ -1,8 +1,51 @@
-use serde_json::json;
 use worker::*;
-use reqwest::Error;
+use serde_json::json;
+use serde::{Serialize, Deserialize};
 
 mod utils;
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WeatherResponse {
+    pub lat: f64,
+    pub lon: f64,
+    pub timezone: String,
+    #[serde(rename = "timezone_offset")]
+    pub timezone_offset: i64,
+    pub current: Current,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Current {
+    pub dt: i64,
+    pub sunrise: i64,
+    pub sunset: i64,
+    pub temp: f64,
+    #[serde(rename = "feels_like")]
+    pub feels_like: f64,
+    pub pressure: i64,
+    pub humidity: i64,
+    #[serde(rename = "dew_point")]
+    pub dew_point: f64,
+    pub uvi: i64,
+    pub clouds: i64,
+    pub visibility: i64,
+    #[serde(rename = "wind_speed")]
+    pub wind_speed: f64,
+    #[serde(rename = "wind_deg")]
+    pub wind_deg: i64,
+    pub weather: Vec<Weather>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Weather {
+    pub id: i64,
+    pub main: String,
+    pub description: String,
+    pub icon: String,
+}
 
 fn log_request(req: &Request) {
     console_log!(
@@ -30,19 +73,37 @@ pub async fn main(req: Request, env: Env) -> Result<Response> {
     // functionality and a `RouteContext` which you can use to  and get route parameters and
     // Environment bindings like KV Stores, Durable Objects, Secrets, and Variables.
     router
-        .get_async("/weather", |req, ctx| async move {
+        .get_async("/", |req, ctx| async move {
+            let client = reqwest::Client::new();
             let cordinates: (f32, f32) = req.cf().coordinates().unwrap_or_default();
             let (lat,lon) = cordinates;
 
             let request_url = format!("https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=hourly,daily,minutely&appid={key}",
-            key = "",
+            key = ctx.var("WEATHER_OPEN_API_KEY")?.to_string(),
             lat = lat,
             lon = lon);
             println!("{}", request_url);
 
-            let response = reqwest::get(&request_url).await?;
+            let data = client
+                .get(request_url)
+                .header("content-type", "application/json")
+                .header("accept", "application/json")
+                .send()
+                .await
+                .unwrap();
 
-            Response::ok("Hello from Workers!")
+            match data.status() {
+                reqwest::StatusCode::OK => {
+                    match data.json::<WeatherResponse>().await {
+                        Ok(parsed) => {
+                            return Response::from_json(&json!(parsed))
+                        },
+                        Err(_) => return Response::error("Bad Request", 400),
+                    };
+                }
+                reqwest::StatusCode::UNAUTHORIZED => return Response::error("Bad Request", 401),
+                _ => return Response::error("Bad Request", 400)
+            }
         })
         .get("/worker-version", |_, ctx| {
             let version = ctx.var("WORKERS_RS_VERSION")?.to_string();
