@@ -1,5 +1,6 @@
 use serde_json::json;
 use worker::*;
+use reqwest::Error;
 
 mod utils;
 
@@ -29,22 +30,19 @@ pub async fn main(req: Request, env: Env) -> Result<Response> {
     // functionality and a `RouteContext` which you can use to  and get route parameters and
     // Environment bindings like KV Stores, Durable Objects, Secrets, and Variables.
     router
-        .get("/", |_, _| Response::ok("Hello from Workers!"))
-        .post_async("/form/:field", |mut req, ctx| async move {
-            if let Some(name) = ctx.param("field") {
-                let form = req.form_data().await?;
-                match form.get(name) {
-                    Some(FormEntry::Field(value)) => {
-                        return Response::from_json(&json!({ name: value }))
-                    }
-                    Some(FormEntry::File(_)) => {
-                        return Response::error("`field` param in form shouldn't be a File", 422);
-                    }
-                    None => return Response::error("Bad Request", 400),
-                }
-            }
+        .get_async("/weather", |req, ctx| async move {
+            let cordinates: (f32, f32) = req.cf().coordinates().unwrap_or_default();
+            let (lat,lon) = cordinates;
 
-            Response::error("Bad Request", 400)
+            let request_url = format!("https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=hourly,daily,minutely&appid={key}",
+            key = "",
+            lat = lat,
+            lon = lon);
+            println!("{}", request_url);
+
+            let response = reqwest::get(&request_url).await?;
+
+            Response::ok("Hello from Workers!")
         })
         .get("/worker-version", |_, ctx| {
             let version = ctx.var("WORKERS_RS_VERSION")?.to_string();
