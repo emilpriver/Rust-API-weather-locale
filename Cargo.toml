@@ -1,7 +1,7 @@
 [package]
 name = "weather-locale-api"
 version = "0.1.0"
-authors = ["Emil Privér <emil@rivercode.se>"]
+authors = ["Emil Privér <emil@priver.dev>"]
 edition = "2018"
 
 [lib]
