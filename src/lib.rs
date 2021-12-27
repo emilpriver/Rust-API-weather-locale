@@ -12,30 +12,58 @@ pub struct WeatherResponse {
     pub timezone: String,
     #[serde(rename = "timezone_offset")]
     pub timezone_offset: i64,
-    pub current: Current,
+    pub daily: Vec<Daily>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Current {
+pub struct Daily {
     pub dt: i64,
     pub sunrise: i64,
     pub sunset: i64,
-    pub temp: f64,
+    pub moonrise: i64,
+    pub moonset: i64,
+    #[serde(rename = "moon_phase")]
+    pub moon_phase: f64,
+    pub temp: Temp,
     #[serde(rename = "feels_like")]
-    pub feels_like: f64,
+    pub feels_like: FeelsLike,
     pub pressure: i64,
     pub humidity: i64,
     #[serde(rename = "dew_point")]
     pub dew_point: f64,
-    pub uvi: i64,
-    pub clouds: i64,
-    pub visibility: i64,
     #[serde(rename = "wind_speed")]
     pub wind_speed: f64,
     #[serde(rename = "wind_deg")]
     pub wind_deg: i64,
+    #[serde(rename = "wind_gust")]
+    pub wind_gust: f64,
     pub weather: Vec<Weather>,
+    pub clouds: i64,
+    pub pop: f64,
+    pub uvi: f64,
+    pub rain: Option<f64>,
+    pub snow: Option<f64>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Temp {
+    pub day: f64,
+    pub min: f64,
+    pub max: f64,
+    pub night: f64,
+    pub eve: f64,
+    pub morn: f64,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeelsLike {
+    pub day: f64,
+    pub night: f64,
+    pub eve: f64,
+    pub morn: f64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -46,6 +74,7 @@ pub struct Weather {
     pub description: String,
     pub icon: String,
 }
+
 
 fn log_request(req: &Request) {
     console_log!(
@@ -78,7 +107,7 @@ pub async fn main(req: Request, env: Env) -> Result<Response> {
             let cordinates: (f32, f32) = req.cf().coordinates().unwrap_or_default();
             let (lat,lon) = cordinates;
 
-            let request_url = format!("https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=hourly,daily,minutely&appid={key}",
+            let request_url = format!("https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,current,hourly&appid={key}",
             key = ctx.var("WEATHER_OPEN_API_KEY")?.to_string(),
             lat = lat,
             lon = lon);
@@ -98,7 +127,10 @@ pub async fn main(req: Request, env: Env) -> Result<Response> {
                         Ok(parsed) => {
                             return Response::from_json(&json!(parsed))
                         },
-                        Err(_) => return Response::error("Bad Request", 400),
+                        Err(err) => {
+                            console_log!("{}", err);
+                            return Response::error("Bad Request", 400)
+                        },
                     };
                 }
                 reqwest::StatusCode::UNAUTHORIZED => return Response::error("Bad Request", 401),
